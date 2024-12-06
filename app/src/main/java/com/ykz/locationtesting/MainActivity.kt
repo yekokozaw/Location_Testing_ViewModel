@@ -1,7 +1,9 @@
 package com.ykz.locationtesting
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.Location
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
@@ -11,17 +13,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleCoroutineScope
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.android.volley.toolbox.JsonObjectRequest
+import com.android.volley.toolbox.Volley
 import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.LocationSettingsRequest
-import com.google.android.gms.location.LocationSettingsResponse
-import com.google.android.gms.location.Priority
-import com.google.android.gms.location.SettingsClient
-import com.google.android.gms.tasks.Task
 import com.ykz.locationtesting.databinding.ActivityMainBinding
 import com.ykz.locationtesting.ui.theme.viewmodel.LocationViewModel
 import com.ykz.locationtesting.ui.theme.viewmodel.UiState
@@ -62,7 +59,10 @@ class MainActivity : ComponentActivity() {
         mBinding.btnShowMap.setOnClickListener {
             showLocationInGoogleMaps()
         }
-
+        mBinding.btnCalculateTime.setOnClickListener{
+            //getDistanceMatrix(latitude ?: 0.0,longitude ?: 0.0,21.9788,96.0879)
+            calculateDistanceAndTime(latitude ?: 0.0,longitude ?: 0.0)
+        }
     }
 
     private fun checkAndRequestLocationPermission() {
@@ -120,76 +120,69 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-//    private fun accessLocation() {
-//        // Check for location permission before accessing location
-//        if (ContextCompat.checkSelfPermission(
-//                this,
-//                android.Manifest.permission.ACCESS_FINE_LOCATION
-//            ) == PackageManager.PERMISSION_GRANTED
-//        ) {
-//            fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
-//                .addOnSuccessListener { location ->
-//                    if (location != null) {
-//                        latitude = location.latitude
-//                        longitude = location.longitude
-//                        mBinding.tvLat.text = latitude.toString()
-//                        mBinding.tvLong.text = longitude.toString()
-//                        // Use the latitude and longitude values
-//                        Toast.makeText(
-//                            this,
-//                            "Lat: $latitude, Lon: $longitude",
-//                            Toast.LENGTH_LONG
-//                        ).show()
-//                    } else {
-//                        Toast.makeText(this, "Failed to get location", Toast.LENGTH_SHORT).show()
-//                    }
-//                }
-//                .addOnFailureListener {
-//                    //Toast.makeText(this, "Failed to get location: ${it.message}", Toast.LENGTH_SHORT).show()
-//                }
-//
-////                val locationRequest = LocationRequest.create().apply {
-////                interval = 10000 // Set the interval in milliseconds for active location updates
-////                fastestInterval = 5000 // Set the fastest interval in milliseconds
-////                priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-////            }
-////            fusedLocationClient.requestLocationUpdates(
-////                locationRequest,
-////                locationCallback,
-////                mainLooper
-////            )
-//        }
-//    }
 
-    private fun checkLocationSettings() {
-        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000)
-            .setMinUpdateIntervalMillis(5000)
-            .build()
-        val builder = LocationSettingsRequest.Builder().addLocationRequest(locationRequest)
-        val client: SettingsClient = LocationServices.getSettingsClient(this)
-        val task: Task<LocationSettingsResponse> = client.checkLocationSettings(builder.build())
+    @SuppressLint("SetTextI18n")
+    private fun calculateDistanceAndTime(userLat: Double, userLng: Double) {
+        val restaurantLat = 21.9688  // Example latitude
+        val restaurantLng = 96.0879  // Example longitude
 
-        task.addOnSuccessListener {
-            // All location settings are satisfied
-            viewModel.fetchCurrentLocation(this)
-        }.addOnFailureListener { exception ->
-            // Prompt user to enable location settings
-            Toast.makeText(this, "Please enable location ${exception.message}", Toast.LENGTH_SHORT).show()
+        val userLocation = Location("User Location").apply {
+            latitude = userLat
+            longitude = userLng
         }
+
+        val restaurantLocation = Location("Restaurant Location").apply {
+            latitude = restaurantLat
+            longitude = restaurantLng
+        }
+
+        val distanceInMeters = userLocation.distanceTo(restaurantLocation)
+        val distanceInKm = distanceInMeters / 1000
+
+        // Example: Assume average driving speed is 40 km/h
+        val estimatedTimeInMinutes = (distanceInKm / 30) * 60
+
+        Toast.makeText(this, "Distance : $distanceInKm km", Toast.LENGTH_SHORT).show()
+        println("Distance: $distanceInKm km")
+        mBinding.distanceAndTime.text = "Estimated Time: $estimatedTimeInMinutes mins"
+        println("Estimated Time: $estimatedTimeInMinutes minutes")
     }
 
+    fun getDistanceMatrix(userLat: Double, userLng: Double, restaurantLat: Double, restaurantLng: Double) {
+        val apiKey = "AIzaSyBgCbFWzm1iT2vlpRfIml31M3NnmeQ1lHE"
+        val origin = "$userLat,$userLng"
+        val destination = "$restaurantLat,$restaurantLng"
+        val url = "https://maps.googleapis.com/maps/api/distancematrix/json?origins=$origin&destinations=$destination&mode=driving&key=$apiKey"
+
+        val requestQueue = Volley.newRequestQueue(this)
+        val jsonObjectRequest = JsonObjectRequest(
+            com.android.volley.Request.Method.GET, url, null,
+            { response ->
+                val rows = response.getJSONArray("rows")
+                val elements = rows.getJSONObject(0).getJSONArray("elements")
+                val duration = elements.getJSONObject(0).getJSONObject("duration").getString("text")
+                Toast.makeText(this, "Estimated Time: $duration", Toast.LENGTH_LONG).show()
+            },
+            { _ ->
+                // Handle API request error
+            })
+
+        requestQueue.add(jsonObjectRequest)
+    }
+
+    @SuppressLint("QueryPermissionsNeeded")
     private fun showLocationInGoogleMaps() {
         if (latitude != null && longitude != null) {
             // Create a Uri with the geo scheme and the coordinates
-            val gmmIntentUri = Uri.parse("geo:$latitude,$longitude?q=$latitude,$longitude")
+            val gmmIntentUri = Uri.parse("geo:0,0?q=$latitude,$longitude")
+            //val gmmIntentUri = Uri.parse("geo:$latitude,$longitude?q=$latitude,$longitude")
             // Create an Intent to open Google Maps
             val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
-            mapIntent.setPackage("com.google.android.apps.maps")
             // Check if Google Maps is available on the device
-            if (mapIntent.resolveActivity(packageManager) != null) {
+            if (packageManager.queryIntentActivities(mapIntent, 0).isNotEmpty()) {
                 startActivity(mapIntent)
             } else {
-                Toast.makeText(this, "Google Maps is not installed", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "No Map application found", Toast.LENGTH_LONG).show()
             }
         } else {
             Toast.makeText(this, "Location not available", Toast.LENGTH_SHORT).show()
