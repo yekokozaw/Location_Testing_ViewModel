@@ -20,11 +20,38 @@
         android:layout_marginTop="12dp"
         android:layout_centerHorizontal="true"/>
 
+    <TextView
+        android:id="@+id/street"
+        android:text="street"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/distanceAndTime"
+        android:layout_marginTop="12dp"
+        android:layout_centerHorizontal="true"/>
+
+    <TextView
+        android:id="@+id/country"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/street"
+        android:text="country"
+        android:layout_marginTop="12dp"
+        android:layout_centerHorizontal="true"/>
+
+    <TextView
+        android:id="@+id/region"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="region"
+        android:layout_below="@id/country"
+        android:layout_marginTop="12dp"
+        android:layout_centerHorizontal="true"/>
     <ProgressBar
         android:id="@+id/progressLoading"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerInParent="true"/>
+
     <RelativeLayout
         android:id="@+id/rlSuccessState"
         android:layout_centerInParent="true"

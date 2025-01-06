@@ -3,6 +3,8 @@ package com.ykz.locationtesting
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.Address
+import android.location.Geocoder
 import android.location.Location
 import android.net.Uri
 import android.os.Bundle
@@ -23,6 +25,7 @@ import com.ykz.locationtesting.databinding.ActivityMainBinding
 import com.ykz.locationtesting.ui.theme.viewmodel.LocationViewModel
 import com.ykz.locationtesting.ui.theme.viewmodel.UiState
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
@@ -52,7 +55,6 @@ class MainActivity : ComponentActivity() {
 
         checkAndRequestLocationPermission()
         observeViewModel()
-
         mBinding.btnTryAgain.setOnClickListener{
             viewModel.fetchCurrentLocation(this)
         }
@@ -98,6 +100,7 @@ class MainActivity : ComponentActivity() {
                             mBinding.btnShowMap.visibility = View.VISIBLE
                             latitude = state.latitude
                             longitude = state.longitude
+                            getAddressFromLocation(latitude!!, longitude!!)
                             mBinding.tvLat.text = buildString {
                                 append("Latitude :")
                                 append(latitude)
@@ -118,6 +121,35 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    private fun getAddressFromLocation(latitude: Double, longitude: Double) {
+        try {
+            val geocoder = Geocoder(this, Locale.getDefault())
+            val addresses: List<Address>? = geocoder.getFromLocation(latitude, longitude, 1)
+
+            if (addresses != null && addresses.isNotEmpty()) {
+                val address: Address = addresses[0]
+
+                // Extract specific components of the address
+                val streetAddress = address.thoroughfare // street address
+                val subLocality = address.subLocality
+                //val locality = address.locality // City or town
+                val adminArea = address.adminArea // State or region
+                val postalCode = address.postalCode // ZIP or postal code
+                val country = address.countryName // Country
+
+                // Display the address
+                mBinding.street.text = streetAddress
+                mBinding.country.text = postalCode
+                mBinding.region.text = "adminArea : " + adminArea
+            } else {
+                Toast.makeText(this, "No address found", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
